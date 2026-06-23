@@ -1,0 +1,59 @@
+baseURL = 'https://61877778.xyz/'
+locale = 'zh-cn'
+title = 'Liang Zhu'
+theme = 'PaperMod'
+
+# 语言设置
+contentDir = 'content'
+
+# 首页展示模式
+[params]
+  defaultTheme = 'auto'
+  disableThemeToggle = false
+  ShowReadingTime = true
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowWordCount = true
+  ShowRssButtonInSectionTermList = true
+  UseHugoToc = true
+  comments = false
+  # 首页信息
+  title = 'Liang Zhu'
+  description = 'Personal website'
+
+  [params.homeInfoParams]
+    Title = '嗨，我是 Liang Zhu 👋'
+    Content = '欢迎来到我的个人主页，这里记录技术笔记和项目经验'
+
+  # 社交媒体链接
+  [[params.socialIcons]]
+    name = 'github'
+    url = 'https://github.com/zl778'
+  [[params.socialIcons]]
+    name = 'email'
+    url = 'mailto:pistachio26@me.com'
+
+# 菜单
+[[menu.main]]
+  identifier = 'posts'
+  name = '博客'
+  url = '/posts/'
+  weight = 10
+
+[[menu.main]]
+  identifier = 'about'
+  name = '关于'
+  url = '/about/'
+  weight = 20
+
+[[menu.main]]
+  identifier = 'search'
+  name = '搜索'
+  url = '/search/'
+  weight = 30
+
+# 搜索引擎
+[outputs]
+  home = ['HTML', 'RSS', 'JSON']

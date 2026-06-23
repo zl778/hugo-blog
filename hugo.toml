@@ -1,4 +1,5 @@
 baseURL = 'https://blog.61877778.xyz/'
+buildFuture = true
 locale = 'zh-cn'
 title = 'Liang Zhu'
 theme = 'PaperMod'

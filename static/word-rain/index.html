@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单词雨</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  overflow: hidden;
+  height: 100vh;
+  user-select: none;
+}
+#game-area {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+.word-fall {
+  position: absolute;
+  white-space: nowrap;
+  font-size: 18px;
+  color: #7ec8e3;
+  text-shadow: 0 0 8px rgba(126,200,227,0.3);
+  transition: color 0.15s;
+  pointer-events: none;
+}
+.word-fall .zh {
+  font-size: 13px;
+  color: #8888aa;
+  margin-left: 6px;
+}
+.word-fall.hard-mode .en-text { display: none; }
+.word-fall.hard-mode .zh {
+  font-size: 18px;
+  color: #f0c674;
+  margin-left: 0;
+  text-shadow: 0 0 8px rgba(240,198,116,0.3);
+}
+.word-fall.correct {
+  color: #4ade80 !important;
+  text-shadow: 0 0 12px rgba(74,222,128,0.5);
+}
+#input-area {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: rgba(15,15,26,0.85);
+  padding: 12px 24px;
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  border: 1px solid #2a2a3e;
+}
+#word-input {
+  width: 280px;
+  padding: 10px 16px;
+  font-size: 18px;
+  border: 2px solid #3a3a5e;
+  border-radius: 10px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: 'Segoe UI', monospace;
+}
+#word-input:focus { border-color: #7ec8e3; }
+#word-input.correct-flash { border-color: #4ade80; }
+#word-input.wrong-flash { border-color: #ef4444; }
+
+/* Control buttons - bottom right */
+#control-buttons {
+  position: fixed;
+  bottom: 48px;
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.game-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid #4a4a6e;
+  border-radius: 8px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.game-btn:hover {
+  background: #2a2a4e;
+  border-color: #7ec8e3;
+}
+
+#hud {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  gap: 30px;
+  font-size: 16px;
+  background: rgba(15,15,26,0.8);
+  padding: 8px 24px;
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  border: 1px solid #2a2a3e;
+}
+.hud-item { display: flex; gap: 6px; align-items: center; }
+.hud-item .label { color: #666; font-size: 13px; }
+.hud-item .value { color: #e0e0e0; font-weight: 600; font-variant-numeric: tabular-nums; }
+#end-screen {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,15,26,0.92);
+  z-index: 200;
+  backdrop-filter: blur(8px);
+}
+#end-screen h2 {
+  font-size: 36px;
+  color: #7ec8e3;
+  margin-bottom: 20px;
+}
+.btn {
+  padding: 12px 40px;
+  font-size: 18px;
+  border: 2px solid #7ec8e3;
+  border-radius: 12px;
+  background: transparent;
+  color: #7ec8e3;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:hover {
+  background: #7ec8e3;
+  color: #0f0f1a;
+}
+#miss-list {
+  max-width: 500px;
+  width: 90%;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 20px 0;
+  background: #1a1a2e;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #2a2a3e;
+}
+.miss-word {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #2a2a3e;
+  font-size: 15px;
+}
+.miss-word:last-child { border: none; }
+.miss-word .en { color: #ef4444; }
+.miss-word .zh { color: #888; }
+#timer-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #7ec8e3, #4ade80);
+  z-index: 101;
+  transition: width 1s linear;
+}
+
+/* --- START SCREEN --- */
+#start-screen {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,15,26,0.95);
+  z-index: 200;
+  backdrop-filter: blur(8px);
+  overflow-y: auto;
+  padding: 20px;
+}
+#start-screen h1 {
+  font-size: 48px;
+  color: #7ec8e3;
+  margin-bottom: 24px;
+  text-shadow: 0 0 20px rgba(126,200,227,0.4);
+}
+.config-box {
+  background: #1a1a2e;
+  border: 1px solid #2a2a3e;
+  border-radius: 16px;
+  padding: 24px 32px;
+  max-width: 600px;
+  width: 96%;
+}
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.config-row label {
+  color: #ccc;
+  font-size: 15px;
+  min-width: 60px;
+}
+.config-row select {
+  padding: 8px 14px;
+  font-size: 15px;
+  border: 1px solid #3a3a5e;
+  border-radius: 8px;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  outline: none;
+  cursor: pointer;
+}
+.config-row select:focus { border-color: #7ec8e3; }
+.word-editor-label {
+  color: #aaa;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: block;
+}
+#word-textarea {
+  width: 100%;
+  height: 200px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  border: 1px solid #3a3a5e;
+  border-radius: 10px;
+  background: #0f0f1a;
+  color: #d0d0d0;
+  outline: none;
+  resize: vertical;
+  line-height: 1.6;
+}
+#word-textarea:focus { border-color: #7ec8e3; }
+.word-hint {
+  color: #666;
+  font-size: 12px;
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+.config-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.config-actions .btn {
+  font-size: 16px;
+  padding: 10px 32px;
+}
+</style>
+</head>
+<body>
+<div id="timer-bar"></div>
+<div id="game-area"></div>
+
+<div id="hud">
+  <div class="hud-item"><span class="label">正确</span><span class="value" id="score">0</span></div>
+  <div class="hud-item"><span class="label">Miss</span><span class="value" id="miss-count">0</span></div>
+  <div class="hud-item"><span class="label">剩余</span><span class="value" id="remaining">0</span></div>
+  <div class="hud-item"><span class="label">时间</span><span class="value" id="timer">10:00</span></div>
+</div>
+
+<div id="input-area">
+  <input id="word-input" type="text" placeholder="输入英文拼写..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+</div>
+
+<div id="control-buttons">
+  <button class="game-btn" id="pause-btn" onclick="togglePause()">⏸ 暂停</button>
+  <button class="game-btn" onclick="forceEnd()">⏹ 结束</button>
+</div>
+
+<div id="end-screen">
+  <h2>⏱ 时间到！</h2>
+  <p>正确: <strong id="final-score">0</strong> &nbsp; Miss: <strong id="final-miss">0</strong></p>
+  <h3 style="color:#ef4444; font-size:18px; margin-top:10px;">漏掉的单词</h3>
+  <div id="miss-list"></div>
+  <button class="btn" onclick="showStartScreen()">再来一局</button>
+</div>
+
+<div id="start-screen">
+  <h1>🌧 单词雨</h1>
+  <div class="config-box">
+    <div class="config-row">
+      <label>时长：</label>
+      <select id="duration-select">
+        <option value="300">5 分钟</option>
+        <option value="600" selected>10 分钟</option>
+      </select>
+    </div>
+    <div class="config-row">
+      <label>难度：</label>
+      <select id="difficulty-select">
+        <option value="normal" selected>普通（显示英文+中文）</option>
+        <option value="hard">困难（仅显示中文）</option>
+      </select>
+    </div>
+    <label class="word-editor-label">单词列表（每行一个，最多 25 个）</label>
+    <textarea id="word-textarea" spellcheck="false"></textarea>
+    <div class="word-hint">支持格式：en - 中文 &nbsp;|&nbsp; en 中文 &nbsp;|&nbsp; 编号. 日期 en /音标/ - 中文</div>
+    <div class="config-actions">
+      <button class="btn" onclick="startGame()">🚀 开始游戏</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 默认词库 ==========
+const DEFAULT_WORDS = [
+  { en: "vector", zh: "向量" },
+  { en: "slice", zh: "切片，片" },
+  { en: "frame", zh: "车架，框架" },
+  { en: "section", zh: "节，部分" },
+  { en: "established", zh: "确定，确立" },
+  { en: "regenerate", zh: "重新生成" },
+  { en: "collaborators", zh: "协作者" },
+  { en: "hover", zh: "悬停" },
+  { en: "component", zh: "组件，零件" },
+  { en: "variant", zh: "变体" },
+  { en: "inspection", zh: "检查，检验" },
+  { en: "blur", zh: "模糊" },
+  { en: "dispersion", zh: "分散" },
+  { en: "rectangular", zh: "矩形的" },
+  { en: "identical", zh: "相同的" },
+  { en: "suppression", zh: "抑制，镇压" },
+  { en: "orientation", zh: "方向，定向" },
+  { en: "tangent", zh: "切线" },
+];
+
+// ========== 状态 ==========
+let gameRunning = false;
+let gamePaused = false;
+let activeWords = [];     // {el, en, zh, x, y, speed, active, domId}
+let GAME_DURATION = 600;  // 从选择器读取
+let score = 0;
+let missCount = 0;
+let timeLeft = 600;
+let timerInterval = null;
+let spawnInterval = null;
+let animFrameId = null;
+let wordIdCounter = 0;
+let currentWords = [];    // 当前局使用的词库
+let difficultyMode = 'normal';
+
+const AREA_WIDTH = () => window.innerWidth;
+const AREA_HEIGHT = () => window.innerHeight;
+const INPUT_HEIGHT = 120;
+
+// ========== 解析单词文本 ==========
+function parseWordsFromText(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  const words = [];
+  for (const line of lines) {
+    const t = line.trim();
+    let match;
+
+    // 格式1: 编号. 日期 en /音标/ - 中文
+    match = t.match(/\d+\..*?\s+(\w+)\s+\/.*?\/\s*[–\-]\s*(.+)/);
+    if (match) { words.push({ en: match[1], zh: match[2].trim() }); continue; }
+
+    // 格式2: en - 中文
+    match = t.match(/^(\w+)\s*[–\-]\s*(.+)/);
+    if (match) { words.push({ en: match[1], zh: match[2].trim() }); continue; }
+
+    // 格式3: en, 中文
+    match = t.match(/^(\w+)\s*[,，]\s*(.+)/);
+    if (match) { words.push({ en: match[1], zh: match[2].trim() }); continue; }
+
+    // 格式4: en 中文 (空格分隔，英文开头)
+    match = t.match(/^(\w+)\s+(.+)/);
+    if (match) { words.push({ en: match[1], zh: match[2].trim() }); continue; }
+  }
+  return words;
+}
+
+// ========== 显示开始画面，预填充单词 ==========
+function showStartScreen() {
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('start-screen').style.display = 'flex';
+  document.getElementById('game-area').innerHTML = '';
+
+  // 清理残留
+  for (const w of activeWords) {
+    if (w.el && w.el.parentNode) w.el.parentNode.removeChild(w.el);
+  }
+  activeWords = [];
+  gameRunning = false;
+  gamePaused = false;
+  if (timerInterval) clearInterval(timerInterval);
+  if (spawnInterval) clearInterval(spawnInterval);
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+
+  // 预填充默认单词
+  const defaultText = DEFAULT_WORDS.map(w => `${w.en} - ${w.zh}`).join('\n');
+  document.getElementById('word-textarea').value = defaultText;
+}
+
+// ========== 难度参数 ==========
+function getDifficulty(t) {
+  const ratio = Math.min(t / GAME_DURATION, 1);
+  return {
+    spawnInterval: Math.max(1800, 4000 - ratio * 2500),
+    speed: 0.25 + ratio * 0.45,
+    maxActive: Math.floor(3 + ratio * 7),
+    minActive: Math.floor(1 + ratio * 2),
+  };
+}
+
+function getRandomWord() {
+  const idx = Math.floor(Math.random() * currentWords.length);
+  return currentWords[idx];
+}
+
+function spawnWord() {
+  if (gamePaused || !gameRunning || currentWords.length === 0) return;
+  const diff = getDifficulty(GAME_DURATION - timeLeft);
+  if (activeWords.length >= diff.maxActive) return;
+
+  const w = getRandomWord();
+  const el = document.createElement('div');
+  el.className = 'word-fall';
+
+  if (difficultyMode === 'hard') {
+    el.classList.add('hard-mode');
+    el.innerHTML = `<span class="en-text" style="display:none;">${w.en}</span><span class="zh">${w.zh}</span>`;
+  } else {
+    el.innerHTML = `${w.en} <span class="zh">${w.zh}</span>`;
+  }
+
+  el.style.left = Math.random() * (AREA_WIDTH() - 300) + 'px';
+  el.style.top = '-40px';
+
+  const wordObj = {
+    el, en: w.en, zh: w.zh,
+    x: parseFloat(el.style.left),
+    y: -40,
+    speed: diff.speed + Math.random() * 0.15,
+    active: true,
+    domId: wordIdCounter++,
+  };
+
+  document.getElementById('game-area').appendChild(el);
+  activeWords.push(wordObj);
+  document.getElementById('remaining').textContent = activeWords.length;
+}
+
+function updateWords() {
+  if (!gameRunning || gamePaused) return;
+  const bottomLimit = AREA_HEIGHT() - INPUT_HEIGHT;
+  for (let i = activeWords.length - 1; i >= 0; i--) {
+    const w = activeWords[i];
+    if (!w.active) continue;
+    w.y += w.speed;
+    w.el.style.top = w.y + 'px';
+    if (w.y > bottomLimit) {
+      missCount++;
+      document.getElementById('miss-count').textContent = missCount;
+      playMiss();
+      removeWord(i);
+    }
+  }
+}
+
+function removeWord(index) {
+  const w = activeWords[index];
+  if (!w) return;
+  w.active = false;
+  if (w.el.parentNode) w.el.parentNode.removeChild(w.el);
+  activeWords.splice(index, 1);
+  document.getElementById('remaining').textContent = activeWords.length;
+}
+
+function checkInput() {
+  const input = document.getElementById('word-input');
+  const val = input.value.trim().toLowerCase();
+  if (!val || !gameRunning) return;
+
+  let found = false;
+  let bestIdx = -1;
+  let bestY = -Infinity;
+  for (let i = 0; i < activeWords.length; i++) {
+    if (activeWords[i].active && activeWords[i].en.toLowerCase() === val) {
+      if (activeWords[i].y > bestY) {
+        bestY = activeWords[i].y;
+        bestIdx = i;
+      }
+    }
+  }
+  if (bestIdx !== -1) {
+    const w = activeWords[bestIdx];
+    w.el.classList.add('correct');
+    score++;
+    document.getElementById('score').textContent = score;
+    playCorrect();
+    setTimeout(() => removeWord(bestIdx), 250);
+    found = true;
+  }
+
+  if (found) {
+    input.classList.add('correct-flash');
+    input.value = '';
+    setTimeout(() => input.classList.remove('correct-flash'), 200);
+  } else {
+    input.classList.add('wrong-flash');
+    setTimeout(() => input.classList.remove('wrong-flash'), 200);
+  }
+}
+
+// ========== Audio ==========
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playCorrect() {
+  try {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+  } catch(e) {}
+}
+function playMiss() {
+  try {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+function updateTimer() {
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+  const pct = (timeLeft / GAME_DURATION) * 100;
+  document.getElementById('timer-bar').style.width = pct + '%';
+  if (timeLeft <= 0) { endGame(); return; }
+  timeLeft--;
+}
+
+function startGame() {
+  // 读取配置
+  GAME_DURATION = parseInt(document.getElementById('duration-select').value);
+  timeLeft = GAME_DURATION;
+  difficultyMode = document.getElementById('difficulty-select').value;
+
+  // 解析单词
+  const rawText = document.getElementById('word-textarea').value;
+  let parsed = parseWordsFromText(rawText);
+  if (parsed.length === 0) parsed = [...DEFAULT_WORDS];
+  if (parsed.length > 25) parsed = parsed.slice(0, 25);
+  currentWords = parsed;
+
+  // 重置状态
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('game-area').innerHTML = '';
+
+  for (const w of activeWords) {
+    if (w.el && w.el.parentNode) w.el.parentNode.removeChild(w.el);
+  }
+
+  gameRunning = true;
+  gamePaused = false;
+  activeWords = [];
+  score = 0;
+  missCount = 0;
+  wordIdCounter = 0;
+
+  document.getElementById('score').textContent = '0';
+  document.getElementById('miss-count').textContent = '0';
+  document.getElementById('remaining').textContent = '0';
+  document.getElementById('timer-bar').style.width = '100%';
+  const mins = Math.floor(GAME_DURATION / 60);
+  const secs = GAME_DURATION % 60;
+  document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+  document.getElementById('pause-btn').textContent = '⏸ 暂停';
+
+  initAudio();
+
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 1000);
+
+  if (spawnInterval) clearInterval(spawnInterval);
+  const diff = getDifficulty(0);
+  spawnInterval = setInterval(spawnWord, diff.spawnInterval);
+  // 立即生成第一批
+  for (let i = 0; i < diff.minActive; i++) spawnWord();
+
+  document.getElementById('word-input').value = '';
+  document.getElementById('word-input').focus();
+
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  function loop() {
+    if (!gameRunning) return;
+    updateWords();
+    animFrameId = requestAnimationFrame(loop);
+  }
+  animFrameId = requestAnimationFrame(loop);
+}
+
+function togglePause() {
+  if (!gameRunning) return;
+  gamePaused = !gamePaused;
+  document.getElementById('pause-btn').textContent = gamePaused ? '▶ 继续' : '⏸ 暂停';
+  if (gamePaused) {
+    if (timerInterval) clearInterval(timerInterval);
+    if (spawnInterval) clearInterval(spawnInterval);
+  } else {
+    timerInterval = setInterval(updateTimer, 1000);
+    const diff = getDifficulty(GAME_DURATION - timeLeft);
+    spawnInterval = setInterval(spawnWord, diff.spawnInterval);
+  }
+}
+
+function forceEnd() {
+  if (!gameRunning) return;
+  for (const w of activeWords) {
+    if (w.active) missCount++;
+  }
+  document.getElementById('miss-count').textContent = missCount;
+  endGame();
+}
+
+function endGame() {
+  gameRunning = false;
+  if (timerInterval) clearInterval(timerInterval);
+  if (spawnInterval) clearInterval(spawnInterval);
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+
+  const misses = [];
+  for (const w of activeWords) {
+    if (w.active) misses.push({ en: w.en, zh: w.zh });
+  }
+
+  const list = document.getElementById('miss-list');
+  list.innerHTML = '';
+
+  if (misses.length === 0) {
+    list.innerHTML = '<div style="color:#4ade80;text-align:center;padding:12px;">全部完成，没有漏掉！🎉</div>';
+  } else {
+    const seen = new Set();
+    const uniqueMisses = misses.filter(m => {
+      const k = m.en.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    uniqueMisses.sort((a, b) => a.en.localeCompare(b.en));
+    for (const m of uniqueMisses) {
+      const div = document.createElement('div');
+      div.className = 'miss-word';
+      div.innerHTML = `<span class="en">${m.en}</span><span class="zh">${m.zh}</span>`;
+      list.appendChild(div);
+    }
+  }
+
+  document.getElementById('final-score').textContent = score;
+  document.getElementById('final-miss').textContent = missCount;
+  document.getElementById('end-screen').style.display = 'flex';
+}
+
+// Enter key handler
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('word-input');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      checkInput();
+    }
+  });
+
+  // 初始化：显示开始画面
+  showStartScreen();
+});
+
+window.addEventListener('resize', () => {});
+</script>
+</body>
+</html>

@@ -56,5 +56,8 @@ contentDir = 'content'
   weight = 30
 
 # 搜索引擎
+[markup.goldmark.renderer]
+  unsafe = true
+
 [outputs]
   home = ['HTML', 'RSS', 'JSON']
